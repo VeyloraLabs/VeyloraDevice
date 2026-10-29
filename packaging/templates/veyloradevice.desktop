@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=VeyloraDevice
+GenericName=Device manager
+Comment=Manage and inspect Apple and Android devices
+Exec=veyloradevice
+Icon=veyloradevice
+Terminal=false
+Categories=Utility;System;
+Keywords=iphone;ipad;android;adb;ios;firmware;
+StartupWMClass=VeyloraDevice
