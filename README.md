@@ -4,6 +4,8 @@
 
 # VeyloraDevice
 
+**Made with 💚 in Andalusia, Spain.**
+
 **Apple and Android device manager for Linux, all in one window.**
 
 Real-time information, firmware, apps, files, screenshots, and device valuation for your iPhone, iPad, or Android phone.
