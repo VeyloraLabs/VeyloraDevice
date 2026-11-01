@@ -20,8 +20,7 @@ from ..dispatch import run_async
 
 def open_terminal_or_warn(parent, argv):
     if not launch_in_terminal(argv):
-        QMessageBox.warning(parent, "Terminal", tr("No encontré ningún terminal (konsole, gnome-terminal, xterm…).",
-                                                   "No terminal found (konsole, gnome-terminal, xterm…)."))
+        QMessageBox.warning(parent, "Terminal", tr("No encontré ningún terminal.", "No terminal found."))
 
 
 class InfoWindow(QDialog):

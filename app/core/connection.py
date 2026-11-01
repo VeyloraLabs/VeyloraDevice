@@ -2,6 +2,8 @@ import glob
 import os
 import re
 
+from .. import osinfo
+from ..i18n import tr
 from .tools import run
 
 APPLE_VENDOR = "05ac"
@@ -9,6 +11,8 @@ BLOCK_FILE = "/etc/modprobe.d/ipheth-block.conf"
 
 
 def apple_usb_present():
+    if not osinfo.IS_LINUX:
+        return False
     for vend in glob.glob("/sys/bus/usb/devices/*/idVendor"):
         try:
             with open(vend) as f:
@@ -88,5 +92,30 @@ FIX_SCRIPTS = {
 }
 
 
+class FixUnavailable(Exception):
+    pass
+
+
+def _mac_admin(script):
+    return ["osascript", "-e", f'do shell script "{script}" with administrator privileges']
+
+
+def _windows_admin(script):
+    inner = script.replace("'", "''")
+    return ["powershell", "-NoProfile", "-Command",
+            f"Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-Command','{inner}'"]
+
+
 def fix_cmd(name):
-    return ["pkexec", "sh", "-c", FIX_SCRIPTS[name]]
+    if osinfo.IS_LINUX:
+        return ["pkexec", "sh", "-c", FIX_SCRIPTS[name]]
+    if osinfo.IS_MAC and name == "reset_pairing":
+        return _mac_admin("rm -f /var/db/lockdown/*.plist")
+    if osinfo.IS_WINDOWS and name == "reset_pairing":
+        return _windows_admin("Remove-Item \"$env:ProgramData\\Apple\\Lockdown\\*.plist\" -Force -ErrorAction SilentlyContinue")
+    if osinfo.IS_WINDOWS and name == "start_usbmuxd":
+        return _windows_admin("Restart-Service 'Apple Mobile Device Service'")
+    if osinfo.IS_MAC and name == "start_usbmuxd":
+        raise FixUnavailable(tr("En macOS el servicio usbmuxd es del sistema: desconecta y vuelve a conectar el cable o reinicia el Mac.",
+                                "On macOS the usbmuxd service belongs to the system: unplug and replug the cable or restart the Mac."))
+    raise FixUnavailable(tr("Esta reparación solo existe en Linux.", "This fix only exists on Linux."))

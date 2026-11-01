@@ -6,6 +6,6 @@ IPSW/
 .idea/
 .vscode/
 packaging/compilation/
-packaging/.venv/
-packaging/.work/
+packaging/.venv*/
+packaging/.work*/
 packaging/.cache/

@@ -84,7 +84,7 @@ class MainWindow(FluentWindow):
         missing = tools.missing_tools()
         if missing:
             toast(self, "warn", tr("Faltan herramientas", "Missing tools"),
-                  ", ".join(missing) + "\n" + tools.INSTALL_HINT, 12000)
+                  ", ".join(missing) + "\n" + tools.install_hint(), 12000)
 
         self.t_android.goto_apps.connect(lambda: self.switchTo(self.t_android_apps))
         self.t_android_tools.goto_device.connect(lambda: self.switchTo(self.t_android))

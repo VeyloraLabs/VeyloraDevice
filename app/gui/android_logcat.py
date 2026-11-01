@@ -6,7 +6,7 @@ from PySide6.QtGui import QColor, QFontDatabase, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import QDialog, QFileDialog, QHBoxLayout, QPlainTextEdit, QVBoxLayout
 from qfluentwidgets import CaptionLabel, ComboBox, FluentIcon as FIF, PushButton, SearchLineEdit
 
-from .. import privacy, theme
+from .. import osinfo, privacy, theme
 from ..core import android
 from ..dispatch import run_async
 from ..i18n import tr
@@ -84,6 +84,7 @@ class LogcatWindow(QDialog):
         self._flush.setInterval(150)
         self._flush.timeout.connect(self._flush_pending)
         self._flush.start()
+        osinfo.hide_console(self.proc)
         self.proc.start()
         self._update_status()
 

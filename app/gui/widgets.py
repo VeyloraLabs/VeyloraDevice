@@ -5,6 +5,7 @@ from PySide6.QtGui import QFontDatabase, QTextCursor
 from PySide6.QtWidgets import QPlainTextEdit, QVBoxLayout, QWidget
 from qfluentwidgets import ProgressBar
 
+from .. import osinfo
 from ..i18n import tr
 
 PCT = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*%")
@@ -52,6 +53,7 @@ class LogPanel(QWidget):
         p.finished.connect(self._on_finished)
         p.errorOccurred.connect(self._on_error)
         self.proc = p
+        osinfo.hide_console(p)
         p.start(program, list(args))
         return True
 

@@ -3,7 +3,7 @@ import sys
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication
 
-from app import assets, dispatch, theme
+from app import assets, dispatch, osinfo, theme
 from app.gui.main_window import MainWindow
 
 
@@ -17,6 +17,8 @@ def migrate_settings():
 
 
 def main():
+    osinfo.extend_path()
+    osinfo.set_windows_app_id("VeyloraLabs.VeyloraDevice")
     app = QApplication(sys.argv)
     app.setApplicationName("VeyloraDevice")
     app.setOrganizationName("VeyloraLabs")

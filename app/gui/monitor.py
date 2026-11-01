@@ -1,5 +1,6 @@
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from .. import osinfo
 from ..core import connection, device, tools
 from ..dispatch import run_async
 
@@ -75,7 +76,7 @@ class DeviceMonitor(QObject):
             self._auto_fixed = False
         if self._repairing:
             state = dict(state, issue="repairing")
-        elif issue in AUTO_REPAIR_ISSUES and not self._auto_fixed and (state["mode"] == "normal" or issue == "mux"):
+        elif osinfo.IS_LINUX and issue in AUTO_REPAIR_ISSUES and not self._auto_fixed and (state["mode"] == "normal" or issue == "mux"):
             self._auto_repair()
             state = dict(state, issue="repairing")
         if state["mode"] != "normal":

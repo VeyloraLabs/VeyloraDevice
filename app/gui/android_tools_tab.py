@@ -7,9 +7,9 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QFileDialog, QGridLayout, QHBoxLayout, QMessageBox
 from qfluentwidgets import BodyLabel, CaptionLabel, FluentIcon as FIF, LineEdit, PushButton, SwitchButton
 
-from .. import i18n, theme
+from .. import i18n, osinfo, theme
 from ..core import android, requirements
-from ..core.terminal import launch_in_terminal
+from ..core.terminal import launch_in_terminal, launch_script
 from ..dispatch import run_async
 from ..i18n import tr
 from .android_base import AndroidPage, ask_choice, confirm, short_error
@@ -258,7 +258,7 @@ class AndroidToolsTab(AndroidPage):
         self._set_input_note(not allowed)
         if not allowed:
             self._input_help()
-        subprocess.Popen([shutil.which("scrcpy"), "-s", serial], start_new_session=True)
+        subprocess.Popen([shutil.which("scrcpy"), "-s", serial], **osinfo.detached_kwargs())
 
     def _offer_install(self, missing):
         names = ", ".join(missing)
@@ -275,7 +275,7 @@ class AndroidToolsTab(AndroidPage):
         if not command:
             toast(self, "ok", tr("Todo instalado", "Everything installed"),
                   tr("ADB y scrcpy ya están en el PC.", "ADB and scrcpy are already on this PC."))
-        elif not launch_in_terminal(["bash", "-c", command]):
+        elif not launch_script(command):
             toast(self, "err", tr("Sin terminal", "No terminal"),
                   tr("No encontré ningún terminal. Copia esto en uno: ", "No terminal found. Paste this into one: ")
                   + command, 12000)

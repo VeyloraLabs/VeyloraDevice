@@ -16,18 +16,27 @@ It is built on the following open source components. Each one keeps its own lice
 
 Font Awesome Free, bundled inside QtAwesome: icons CC BY 4.0, fonts SIL OFL 1.1, code MIT.
 
+## Included in the Windows and macOS builds
+
+| Component | License | Used for |
+|-----------|---------|----------|
+| Android SDK Platform-Tools (`adb`, `fastboot`) | Apache-2.0 | Talking to Android devices. Downloaded from Google at build time and placed in the `tools` folder of the app |
+
 ## Build tools (only used to compile, not shipped)
 
 | Component | License |
 |-----------|---------|
 | PyInstaller | GPL-2.0 with the bootloader exception (programs it builds can use any license) |
 | dpkg-deb, rpmbuild, appimagetool | Their own licenses |
+| Inno Setup (Windows installer) | Inno Setup License |
+| hdiutil, codesign (macOS) | Part of macOS |
 
 ## Programs VeyloraDevice calls (not included, installed separately)
 
 VeyloraDevice runs these as separate programs and does not bundle them:
-`libimobiledevice` tools (`ideviceinfo`, `idevicebackup2`, `idevicerestore`, ...), `usbmuxd`,
-`adb` and `fastboot` (Android platform tools) and, optionally, `scrcpy`.
+`libimobiledevice` tools (`ideviceinfo`, `idevicebackup2`, `idevicerestore`, ...), `usbmuxd` (Linux),
+`adb` and `fastboot` (Android platform tools, only on Linux) and, optionally, `scrcpy`. On Windows, Apple support
+also needs Apple Devices or iTunes.
 Each one has its own license; check the package of your distribution.
 
 ## Online services

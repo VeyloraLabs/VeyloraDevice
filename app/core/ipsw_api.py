@@ -3,9 +3,11 @@ from pathlib import Path
 
 import requests
 
+from .. import osinfo
+
 API = "https://api.ipsw.me/v4"
 HEADERS = {"User-Agent": "VeyloraDevice/0.1 (VeyloraLabs)"}
-CACHE = Path.home() / ".cache" / "veylora"
+CACHE = osinfo.cache_dir()
 
 
 def get_devices():

@@ -7,7 +7,8 @@ from PySide6.QtWidgets import QButtonGroup, QFileDialog, QHBoxLayout, QMessageBo
 from qfluentwidgets import (BodyLabel, CaptionLabel, ComboBox, FluentIcon as FIF, IconWidget, PushButton,
                             RadioButton, StrongBodyLabel, SwitchButton)
 
-from .. import i18n, privacy, settings, theme
+from .. import i18n, osinfo, privacy, settings, theme
+from ..core import tools
 from ..i18n import tr
 from .components import Page, Pill, card_frame, section, toast
 from .widgets import LogPanel
@@ -76,13 +77,15 @@ class FlashTab(Page):
         self.body.addWidget(section("3 · Opciones", "3 · Options"))
         opt_card, ol = card_frame(spacing=10)
         self.chk_root = SwitchButton()
-        self.chk_root.setChecked(True)
+        self.chk_root.setChecked(osinfo.IS_LINUX)
         self.chk_debug = SwitchButton()
         self._switches = (self.chk_root, self.chk_debug)
         self._set_switch_texts()
         i18n.on_change(lambda _c: self._set_switch_texts())
         for sw, es, en in ((self.chk_root, "Permisos de administrador", "Administrator permissions"),
                            (self.chk_debug, "Registro detallado", "Detailed log")):
+            if sw is self.chk_root and not osinfo.IS_LINUX:
+                continue
             r = QHBoxLayout()
             r.addWidget(i18n.bind(BodyLabel(), "setText", es, en), 1)
             r.addWidget(sw)
@@ -194,8 +197,8 @@ class FlashTab(Page):
                 return
         if not shutil.which("idevicerestore"):
             QMessageBox.critical(self, tr("Falta idevicerestore", "idevicerestore missing"),
-                                 tr("Instala idevicerestore y vuelve a abrir la aplicación. En Fedora: sudo dnf install idevicerestore",
-                                    "Install idevicerestore and reopen the app. On Fedora: sudo dnf install idevicerestore"))
+                                 tr("Instala idevicerestore y vuelve a abrir la aplicación.\n\n",
+                                    "Install idevicerestore and reopen the app.\n\n") + tools.install_hint())
             return
         erase = self.rb_erase.isChecked()
         msg = "\n".join("• " + w for w in self._warnings(erase, latest, path))

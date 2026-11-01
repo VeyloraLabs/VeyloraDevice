@@ -8,9 +8,11 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 
+from .. import osinfo
+
 SITE = "https://ipsw.me/"
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) VeyloraDevice/0.2"}
-CACHE = Path.home() / ".cache" / "veylora"
+CACHE = osinfo.cache_dir()
 
 FALLBACK_CATEGORIES = [("iPhone", "iPhone"), ("iPad", "iPad"), ("Mac", "Mac"), ("Vision", "Vision Pro"),
                        ("AppleTV", "Apple TV"), ("AudioAccessory", "HomePod"), ("iPod", "iPod touch"),

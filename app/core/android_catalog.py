@@ -7,13 +7,14 @@ from pathlib import Path
 
 import requests
 
+from .. import osinfo
 from . import catalog
 
 CSV_URL = "https://storage.googleapis.com/play_public/supported_devices.csv"
 JSON_URL = "https://cdn.jsdelivr.net/gh/bsthen/device-models/devices.json"
 WIKI_API = "https://en.wikipedia.org/w/api.php"
 HEADERS = {"User-Agent": "VeyloraDevice/1.0 (VeyloraLabs; Linux desktop device manager)"}
-CACHE = Path.home() / ".cache" / "veylora"
+CACHE = osinfo.cache_dir()
 MAX_AGE = 30 * 24 * 3600
 
 BRANDS = {"lge": "LG", "oneplus": "OnePlus", "htc": "HTC", "zte": "ZTE", "oppo": "OPPO", "tcl": "TCL", "poco": "POCO",

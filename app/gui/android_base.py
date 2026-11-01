@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import (BodyLabel, CaptionLabel, CardWidget, ComboBox, FluentIcon as FIF,
                             IndeterminateProgressBar, MessageBox, MessageBoxBase, SubtitleLabel)
 
-from .. import i18n, privacy, theme
+from .. import i18n, osinfo, privacy, theme
 from ..core import android
 from ..dispatch import run_async
 from ..i18n import tr
@@ -101,13 +101,21 @@ class AndroidMonitor(QObject):
         self._done({"available": True, "devices": [], "error": str(error)})
 
 
+def adb_install_hint():
+    if osinfo.IS_WINDOWS:
+        return "winget install --id Google.PlatformTools -e"
+    if osinfo.IS_MAC:
+        return "brew install --cask android-platform-tools"
+    return {"debian": "sudo apt install adb fastboot", "arch": "sudo pacman -S android-tools",
+            "suse": "sudo zypper install android-tools"}.get(osinfo.linux_family(), "sudo dnf install android-tools")
+
+
 def describe_state(state, device, fastboot_ok=False):
     if not state["available"]:
+        hint = adb_install_hint()
         return ("adb_missing", tr(
-            "<b>ADB no está instalado.</b> Instala las herramientas de Android y pulsa Buscar de nuevo: "
-            "<b>sudo dnf install android-tools</b> (Fedora) o <b>sudo apt install adb fastboot</b> (Debian/Ubuntu).",
-            "<b>ADB is not installed.</b> Install the Android tools and press Search again: "
-            "<b>sudo dnf install android-tools</b> (Fedora) or <b>sudo apt install adb fastboot</b> (Debian/Ubuntu)."))
+            f"<b>ADB no está instalado.</b> Instálalo y pulsa Buscar de nuevo: <b>{hint}</b>",
+            f"<b>ADB is not installed.</b> Install it and press Search again: <b>{hint}</b>"))
     if state["error"] and not state["devices"]:
         return ("error", tr("<b>ADB dio un error:</b> ", "<b>ADB reported an error:</b> ") + state["error"])
     if not state["devices"] or device is None:
@@ -126,10 +134,16 @@ def describe_state(state, device, fastboot_ok=False):
             "<b>Look at the phone screen and accept “Allow USB debugging?”</b> (unlock it first). Tick “Always allow "
             "from this computer” so it does not ask again."))
     if status == "no permissions":
+        if osinfo.IS_WINDOWS:
+            return ("no_permissions", tr(
+                "<b>Windows no puede usar el USB del móvil.</b> Desconecta y vuelve a conectar el cable. Si sigue igual, "
+                "instala el controlador USB del fabricante (o el Google USB Driver).",
+                "<b>Windows cannot use the phone's USB.</b> Unplug and replug the cable. If it stays the same, install "
+                "the manufacturer's USB driver (or the Google USB Driver)."))
         return ("no_permissions", tr(
-            "<b>Linux no puede acceder al USB del móvil.</b> Desconecta y vuelve a conectar el cable. Si sigue igual, "
+            "<b>El sistema no puede acceder al USB del móvil.</b> Desconecta y vuelve a conectar el cable. Si sigue igual, "
             "tu usuario no tiene permiso USB para este móvil: revisa las reglas udev de ADB de tu distribución.",
-            "<b>Linux cannot access the phone's USB.</b> Unplug and replug the cable. If it stays the same, your user "
+            "<b>The system cannot access the phone's USB.</b> Unplug and replug the cable. If it stays the same, your user "
             "has no USB permission for this phone: check your distribution's ADB udev rules."))
     if status == "offline":
         return ("offline", tr(

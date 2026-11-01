@@ -3,7 +3,7 @@ import re
 import requests
 from PySide6.QtCore import QObject, QSettings, QTimer, Signal
 
-from . import __version__
+from . import __version__, osinfo
 from .dispatch import run_async
 
 REPO = "VeyloraLabs/VeyloraDevice"
@@ -27,14 +27,29 @@ def is_newer(remote, local):
     return bool(remote_v and local_v and remote_v > local_v)
 
 
-def pick_asset(assets, os_release=None):
+def pick_asset(assets, os_release=None, system=None, machine=None):
+    system = system or osinfo.system_label()
+    machine = machine or osinfo.machine()
+    names = [(a.get("name", ""), a.get("browser_download_url", "")) for a in assets]
+
+    def first(predicate):
+        for name, url in names:
+            if url and predicate(name.lower()):
+                return name, url
+        return None
+
+    if system == "Windows":
+        return first(lambda n: n.endswith(".exe") and "setup" in n) or first(lambda n: n.endswith(".zip") and "windows" in n)
+    if system == "macOS":
+        arch = "arm64" if machine == "arm64" else "x86_64"
+        return (first(lambda n: n.endswith(".dmg") and arch in n) or first(lambda n: n.endswith(".dmg"))
+                or first(lambda n: n.endswith(".zip") and "macos" in n))
     if os_release is None:
         try:
             with open("/etc/os-release", encoding="utf-8") as handle:
                 os_release = handle.read().lower()
         except OSError:
             os_release = ""
-    names = [(a.get("name", ""), a.get("browser_download_url", "")) for a in assets]
     if re.search(r"debian|ubuntu|mint|pop|elementary|kali", os_release):
         order = (".deb", ".appimage", ".tar.gz")
     elif re.search(r"fedora|rhel|centos|rocky|alma|suse|mageia", os_release):
@@ -42,9 +57,9 @@ def pick_asset(assets, os_release=None):
     else:
         order = (".appimage", ".tar.gz", ".deb", ".rpm")
     for extension in order:
-        for name, url in names:
-            if name.lower().endswith(extension) and url:
-                return name, url
+        found = first(lambda n, e=extension: n.endswith(e))
+        if found:
+            return found
     return None
 
 
