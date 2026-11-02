@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.png" alt="VeyloraDevice" width="180">
+<img src="assets/icon-512.png" alt="VeyloraDevice" width="180">
 
 # VeyloraDevice
 
