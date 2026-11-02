@@ -10,7 +10,7 @@ from qfluentwidgets import (BodyLabel, CaptionLabel, ComboBox, FluentIcon as FIF
 from .. import i18n, osinfo, privacy, settings, theme
 from ..core import tools
 from ..i18n import tr
-from .components import Page, Pill, card_frame, section, toast
+from .components import Page, Pill, card_frame, confirm_in_app, section, toast
 from .widgets import LogPanel
 
 
@@ -206,10 +206,9 @@ class FlashTab(Page):
                   "Si falla, la app mostrará el registro para diagnosticarlo.\n\n¿Continuar?",
                   "\n\nThe device will go through Recovery during the process; that is normal. Do not unplug the cable. "
                   "If it fails, the app will show the log so you can diagnose it.\n\nContinue?")
-        ask = QMessageBox.warning if erase else QMessageBox.question
-        if ask(self, tr("Confirmar flasheo", "Confirm flash"), msg,
-               QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-               QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+        if not confirm_in_app(self, tr("Confirmar flasheo", "Confirm flash"), msg,
+                              ok=tr("Restaurar", "Restore") if erase else tr("Actualizar", "Update"),
+                              danger=erase):
             return
 
         args = ["-y"]
@@ -251,11 +250,13 @@ class FlashTab(Page):
         return w
 
     def _cancel(self):
-        if QMessageBox.warning(self, tr("Cancelar", "Cancel"),
-                               tr("Cancelar a mitad de un flasheo puede dejar el dispositivo en modo Recovery (se arregla volviendo a restaurar). ¿Cancelar?",
-                                  "Cancelling mid-flash can leave the device in Recovery mode (fixed by restoring again). Cancel?"),
-                               QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                               QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
+        if confirm_in_app(
+                self, tr("Cancelar flasheo", "Cancel flash"),
+                tr("Cancelar a mitad de un flasheo puede dejar el dispositivo en modo Recovery "
+                   "(se arregla volviendo a restaurar). ¿Quieres cancelar?",
+                   "Cancelling mid-flash can leave the device in Recovery mode "
+                   "(fixed by restoring again). Do you want to cancel?"),
+                ok=tr("Cancelar flasheo", "Cancel flash"), danger=True):
             self.panel.stop()
 
     def _finished(self, code):

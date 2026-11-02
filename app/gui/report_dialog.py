@@ -6,7 +6,9 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QCheckBox, QDialog, QFileDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
                                QMessageBox, QPlainTextEdit, QPushButton, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout)
+from qfluentwidgets import ComboBox
 
+from .. import i18n
 from ..core import device, infomap, report
 from ..dispatch import run_async
 from .. import privacy
@@ -54,7 +56,12 @@ class ReportDialog(QDialog):
         logo_row.addWidget(b_logo)
         self.chk_apps = QCheckBox(tr("Incluir lista de aplicaciones instaladas", "Include the list of installed apps"))
         self.chk_keys = QCheckBox(tr("Mostrar la clave técnica bajo cada campo", "Show the technical key under each field"))
+        self.pdf_language = ComboBox()
+        self.pdf_language.addItem("English", userData="en")
+        self.pdf_language.addItem("Español", userData="es")
+        self.pdf_language.setCurrentIndex(max(0, self.pdf_language.findData(i18n.lang())))
         form = QFormLayout()
+        form.addRow(tr("Idioma del PDF:", "PDF language:"), self.pdf_language)
         form.addRow(tr("Logo (opcional):", "Logo (optional):"), logo_row)
         form.addRow(tr("Observaciones:", "Notes:"), self.notes)
         form.addRow("", self.chk_apps)
@@ -179,12 +186,14 @@ class ReportDialog(QDialog):
         meta = {"notes": self.notes.toPlainText(),
                 "logo": self.logo.text().strip() if os.path.isfile(self.logo.text().strip()) else ""}
         show_keys = self.chk_keys.isChecked()
+        language = self.pdf_language.currentData()
         self.b_save.setEnabled(False)
         self.status.setText(tr("Generando PDF…", "Generating PDF…"))
 
         def finish(apps):
             try:
-                report.write_pdf(path, report.build_html(meta, groups, apps, show_keys))
+                report.write_pdf(path, report.build_html(meta, groups, apps, show_keys, language),
+                                 language=language)
             except Exception as e:
                 self.status.setText(tr(f"Error generando el PDF: {e}", f"Error generating the PDF: {e}"))
                 self.b_save.setEnabled(True)

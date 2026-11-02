@@ -3,7 +3,7 @@ import time
 
 from PySide6.QtCore import QObject, QSettings, QTimer, Signal
 
-from .i18n import tr
+from .i18n import text, tr
 
 CLICKS_TO_REVEAL = 5
 REVEAL_SECONDS = 5
@@ -35,16 +35,16 @@ def is_sensitive(label):
     return bool(_SENSITIVE.search(str(label)))
 
 
-def hidden_text():
-    return tr("(oculto)", "(hidden)")
+def hidden_text(language=None):
+    return text("(oculto)", "(hidden)", language)
 
 
 def generic_name(name, fallback):
     return fallback if enabled() and name else name
 
 
-def report_value(label, value):
-    return hidden_text() if enabled() and is_sensitive(label) else value
+def report_value(label, value, language=None):
+    return hidden_text(language) if enabled() and is_sensitive(label) else value
 
 
 def searchable(label, value):

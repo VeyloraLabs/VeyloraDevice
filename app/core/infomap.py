@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 
-from ..i18n import tr
+from ..i18n import text, tr
 from .util import fmt_bytes
 
 CATEGORIES = {
@@ -17,9 +17,18 @@ CATEGORIES = {
 CATEGORY_ORDER = list(CATEGORIES)
 
 
-def category_label(cat):
+def category_label(cat, language=None):
     es, en = CATEGORIES.get(cat, (cat, cat))
-    return tr(es, en)
+    return text(es, en, language)
+
+
+def field_label(key, language=None):
+    if key in KEYMAP:
+        _, es, en = KEYMAP[key]
+        return text(es, en, language)
+    if key in RECOVERY_NAMES:
+        return text(*RECOVERY_NAMES[key], language=language)
+    return key
 
 
 KEYMAP = {
@@ -104,15 +113,16 @@ class Field:
     label: str
     category: str
     value: str
+    raw_value: object = None
 
     @property
     def category_label(self):
         return category_label(self.category)
 
 
-def format_value(key, v):
+def format_value(key, v, language=None):
     if isinstance(v, bool):
-        return tr("Sí", "Yes") if v else "No"
+        return text("Sí", "Yes", language) if v else "No"
     if key in BYTES_KEYS and isinstance(v, (int, float)):
         return fmt_bytes(v)
     if key == "BatteryCurrentCapacity":
@@ -137,7 +147,7 @@ def flatten(info, extra=None):
             label = tr(es, en)
         else:
             cat, label = "other", k
-        fields.append(Field(k, label, cat, format_value(k, v)))
+        fields.append(Field(k, label, cat, format_value(k, v), v))
     fields.sort(key=lambda f: (CATEGORY_ORDER.index(f.category), ORDER.get(f.key, 10_000), f.label.lower()))
     return fields
 
@@ -147,7 +157,7 @@ def from_recovery(rec):
     for k, v in rec.items():
         if v and v != "N/A":
             names = RECOVERY_NAMES.get(k)
-            out.append(Field(k, tr(*names) if names else k, "recovery", v))
+            out.append(Field(k, tr(*names) if names else k, "recovery", v, v))
     return out
 
 

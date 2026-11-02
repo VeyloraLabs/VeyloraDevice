@@ -2,18 +2,14 @@ from PySide6.QtCore import QObject, QTimer, Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import (BodyLabel, CaptionLabel, CardWidget, ComboBox, FluentIcon as FIF,
-                            IndeterminateProgressBar, MessageBox, MessageBoxBase, SubtitleLabel)
+                            IndeterminateProgressBar, MessageBoxBase, SubtitleLabel)
 
 from .. import i18n, osinfo, privacy, theme
 from ..core import android
 from ..dispatch import run_async
 from ..i18n import tr
-from .components import Banner, Page, Pill, toast
+from .components import Banner, Page, Pill, confirm_in_app, toast
 from .icons import android_icon
-
-DANGER_BUTTON = (f"PrimaryPushButton {{ background:{theme.DANGER}; border:1px solid {theme.DANGER}; color:white; }}"
-                 f"PrimaryPushButton:hover {{ background:#f0565b; border-color:#f0565b; }}"
-                 f"PrimaryPushButton:pressed {{ background:#c93a3f; border-color:#c93a3f; }}")
 
 STATUS_INFO = {
     "device": ("Conectado", "Connected", "ok"),
@@ -426,12 +422,7 @@ def relayout_bar(bar):
 
 
 def confirm(parent, title, text, ok=None, danger=False):
-    box = MessageBox(title, text, parent.window())
-    box.yesButton.setText(ok or tr("Aceptar", "OK"))
-    box.cancelButton.setText(tr("Cancelar", "Cancel"))
-    if danger:
-        box.yesButton.setStyleSheet(DANGER_BUTTON)
-    return bool(box.exec())
+    return confirm_in_app(parent, title, text, ok=ok, danger=danger)
 
 
 class ChoiceDialog(MessageBoxBase):

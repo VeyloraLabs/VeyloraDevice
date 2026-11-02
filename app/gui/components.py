@@ -1,9 +1,11 @@
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import (BodyLabel, CaptionLabel, CardWidget, FluentIcon as FIF, IconWidget, InfoBar,
-                            InfoBarPosition, SmoothScrollArea, StrongBodyLabel, SubtitleLabel, TitleLabel)
+                            InfoBarPosition, MessageBoxBase, PrimaryPushButton, PushButton, SmoothScrollArea,
+                            StrongBodyLabel, SubtitleLabel, TitleLabel, ComboBox)
 
 from .. import i18n, theme
+from ..i18n import tr
 
 
 class Page(QWidget):
@@ -118,6 +120,54 @@ def toast(parent, kind, title, text="", ms=4500):
     fn = {"ok": InfoBar.success, "warn": InfoBar.warning, "err": InfoBar.error}.get(kind, InfoBar.info)
     return fn(title=title, content=text, orient=Qt.Orientation.Horizontal, isClosable=True,
               position=InfoBarPosition.TOP_RIGHT, duration=ms, parent=parent.window())
+
+
+class _ConfirmationDialog(MessageBoxBase):
+
+    def __init__(self, parent, title, text, ok, danger):
+        super().__init__(parent)
+        self.viewLayout.addWidget(SubtitleLabel(title))
+        message = BodyLabel(text)
+        message.setWordWrap(True)
+        self.viewLayout.addWidget(message)
+        self.yesButton.setText(ok or tr("Aceptar", "OK"))
+        self.cancelButton.setText(tr("Cancelar", "Cancel"))
+        if danger:
+            self.yesButton.setStyleSheet(
+                f"PrimaryPushButton {{ background:{theme.DANGER}; border:1px solid {theme.DANGER}; color:white; }}"
+                "PrimaryPushButton:hover { background:#f0565b; border-color:#f0565b; }"
+                "PrimaryPushButton:pressed { background:#c93a3f; border-color:#c93a3f; }")
+        self.widget.setMinimumWidth(420)
+
+
+def confirm_in_app(parent, title, text, ok=None, danger=False):
+    """Show a confirmation using the same Fluent dialog pattern as other app windows."""
+    return bool(_ConfirmationDialog(parent.window(), title, text, ok, danger).exec())
+
+
+def choose_pdf_language(parent):
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(tr("Idioma del PDF", "PDF language"))
+    dialog.setMinimumWidth(340)
+    layout = QVBoxLayout(dialog)
+    layout.setContentsMargins(22, 20, 22, 18)
+    layout.setSpacing(12)
+    layout.addWidget(BodyLabel(tr("Elige el idioma de este informe:", "Choose the language for this report:")))
+    language = ComboBox()
+    language.addItem("English", userData="en")
+    language.addItem("Español", userData="es")
+    language.setCurrentIndex(max(0, language.findData(i18n.lang())))
+    layout.addWidget(language)
+    buttons = QHBoxLayout()
+    buttons.addStretch(1)
+    cancel = PushButton(tr("Cancelar", "Cancel"))
+    accept = PrimaryPushButton(tr("Continuar", "Continue"))
+    cancel.clicked.connect(dialog.reject)
+    accept.clicked.connect(dialog.accept)
+    buttons.addWidget(cancel)
+    buttons.addWidget(accept)
+    layout.addLayout(buttons)
+    return language.currentData() if dialog.exec() == QDialog.DialogCode.Accepted else None
 
 
 def card_frame(layout_cls=QVBoxLayout, margins=(18, 14, 18, 14), spacing=8):

@@ -1,7 +1,14 @@
+import hashlib
+import os
 import re
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
 import requests
-from PySide6.QtCore import QObject, QSettings, QTimer, Signal
+from PySide6.QtCore import QObject, QSettings, QTimer, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 
 from . import __version__, osinfo
 from .dispatch import run_async
@@ -9,7 +16,7 @@ from .dispatch import run_async
 REPO = "VeyloraLabs/VeyloraDevice"
 API_LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_URL = f"https://github.com/{REPO}/releases"
-CHECK_EVERY_MS = 6 * 60 * 60 * 1000
+CHECK_EVERY_MS = 30 * 60 * 1000
 FIRST_CHECK_MS = 5000
 HEADERS = {"Accept": "application/vnd.github+json", "User-Agent": f"VeyloraDevice/{__version__} (VeyloraLabs)"}
 
@@ -69,13 +76,19 @@ def parse_release(data):
     tag = data.get("tag_name") or ""
     if not parse_version(tag):
         return None
+    asset = pick_asset(data.get("assets") or [])
+    asset_name = asset[0] if asset else None
+    asset_info = next((item for item in data.get("assets") or [] if item.get("name") == asset_name), {})
     return {
         "version": tag.lstrip("vV"),
         "tag": tag,
         "name": data.get("name") or tag,
         "notes": (data.get("body") or "").strip(),
         "url": data.get("html_url") or RELEASES_URL,
-        "asset": pick_asset(data.get("assets") or []),
+        "asset": asset,
+        "digest": asset_info.get("digest") or "",
+        "checksums": next((item.get("browser_download_url", "") for item in data.get("assets") or []
+                           if item.get("name") == "SHA256SUMS"), ""),
     }
 
 
@@ -85,6 +98,97 @@ def fetch_latest():
         return None
     response.raise_for_status()
     return parse_release(response.json())
+
+
+def download_asset(release, progress=None):
+    asset = release.get("asset")
+    if not asset:
+        raise RuntimeError("No compatible installer was found for this system.")
+    name, url = asset
+    filename = Path(name).name
+    if not filename or filename != name or filename in (".", ".."):
+        raise RuntimeError("The release contains an invalid installer filename.")
+
+    cache = osinfo.cache_dir() / "updates"
+    cache.mkdir(parents=True, exist_ok=True)
+    target = cache / filename
+    fd, temporary = tempfile.mkstemp(prefix=f".{filename}.", suffix=".part", dir=cache)
+    digest = hashlib.sha256()
+    try:
+        with os.fdopen(fd, "wb") as output, requests.get(url, headers=HEADERS, timeout=(10, 60),
+                                                         stream=True) as response:
+            response.raise_for_status()
+            total = int(response.headers.get("content-length", 0) or 0)
+            received = 0
+            for chunk in response.iter_content(chunk_size=128 * 1024):
+                if not chunk:
+                    continue
+                output.write(chunk)
+                digest.update(chunk)
+                received += len(chunk)
+                if progress:
+                    progress(received, total)
+            output.flush()
+        expected = str(release.get("digest", "")).strip()
+        if expected.startswith("sha256:"):
+            expected = expected.split(":", 1)[1]
+        if not expected and release.get("checksums"):
+            checksum_response = requests.get(release["checksums"], headers=HEADERS, timeout=(10, 30))
+            checksum_response.raise_for_status()
+            for line in checksum_response.text.splitlines():
+                match = re.match(r"^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$", line)
+                if match and Path(match.group(2)).name == filename:
+                    expected = match.group(1).lower()
+                    break
+        if expected and digest.hexdigest().lower() != expected.lower():
+            raise RuntimeError("The downloaded installer failed its SHA-256 integrity check.")
+        Path(temporary).replace(target)
+        if target.suffix.lower() == ".appimage":
+            target.chmod(target.stat().st_mode | 0o111)
+        return target
+    except Exception:
+        try:
+            Path(temporary).unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+
+
+def launch_installer(path):
+    path = Path(path).resolve()
+    suffix = path.suffix.lower()
+    if osinfo.IS_WINDOWS:
+        if suffix == ".exe":
+            subprocess.Popen([str(path)], **osinfo.detached_kwargs())
+            return "installer"
+    if osinfo.IS_MAC:
+        if suffix == ".dmg":
+            if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
+                raise RuntimeError("Could not open the downloaded disk image.")
+            return "installer"
+    if suffix in (".deb", ".rpm"):
+        package_manager = {
+            "debian": "apt",
+            "fedora": "dnf",
+            "suse": "zypper",
+        }.get(osinfo.linux_family())
+        if suffix == ".deb":
+            package_manager = "apt"
+        elif package_manager not in ("dnf", "zypper"):
+            package_manager = "dnf"
+        install_args = (["install", "-y", str(path)] if package_manager != "zypper"
+                        else ["--non-interactive", "install", str(path)])
+        pkexec = shutil.which("pkexec")
+        command = shutil.which(package_manager) if package_manager else None
+        if pkexec and command:
+            subprocess.Popen([pkexec, command, *install_args], **osinfo.detached_kwargs())
+            return "installer"
+    if suffix == ".appimage":
+        subprocess.Popen([str(path)], **osinfo.detached_kwargs())
+        return "installer"
+    if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
+        raise RuntimeError("Could not open the downloaded update file.")
+    return "file"
 
 
 def auto_enabled():

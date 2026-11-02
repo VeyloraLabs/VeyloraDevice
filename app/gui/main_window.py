@@ -1,3 +1,4 @@
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 from qfluentwidgets import FluentIcon as FIF, FluentWindow, NavigationItemPosition
 
@@ -17,6 +18,7 @@ from .firmware_tab import FirmwareTab
 from .flash_tab import FlashTab
 from .monitor import DeviceMonitor
 from .icons import android_icon, apple_icon
+from .loading import LoadingScreen
 from .settings_tab import SettingsTab
 from .update_dialog import UpdateDialog
 
@@ -79,6 +81,11 @@ class MainWindow(FluentWindow):
         settings_item = self.addSubInterface(self.t_settings, FIF.SETTING, tr("Ajustes", "Settings"),
                                              NavigationItemPosition.BOTTOM)
         self._nav.append((settings_item, "Ajustes", "Settings"))
+        self._language_loading = None
+        self._language_loading_timer = QTimer(self)
+        self._language_loading_timer.setSingleShot(True)
+        self._language_loading_timer.timeout.connect(self._hide_language_loading)
+        i18n.on_change_start(self._show_language_loading)
         i18n.on_change(self._retranslate)
 
         missing = tools.missing_tools()
@@ -112,6 +119,19 @@ class MainWindow(FluentWindow):
     def _retranslate(self, _code):
         for item, es, en in self._nav:
             item.setText(tr(es, en))
+        if self._language_loading is not None:
+            self._language_loading_timer.start(260)
+
+    def _show_language_loading(self, _code):
+        if self._language_loading is None:
+            self._language_loading = LoadingScreen(self)
+        self._language_loading.setGeometry(self.rect())
+        self._language_loading.show()
+        self._language_loading.raise_()
+
+    def _hide_language_loading(self):
+        if self._language_loading is not None:
+            self._language_loading.hide()
 
     def _show_update(self, release):
         UpdateDialog(release, self).exec()
