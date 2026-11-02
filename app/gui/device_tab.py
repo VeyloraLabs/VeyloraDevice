@@ -10,7 +10,7 @@ from ..core import catalog, connection, infomap, live_stats, tools
 from ..core.util import fmt_bytes
 from ..dispatch import run_async
 from ..i18n import tr
-from .components import Banner, Page, Pill, card_frame, toast
+from .components import Banner, Page, Pill, card_frame, confirm_in_app, toast
 from .device_image import DeviceImage
 from .stat_strip import StatStrip
 
@@ -48,10 +48,8 @@ class DeviceTab(Page):
         self.bar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.a_refresh = self._act(FIF.SYNC, "Actualizar", "Refresh", self.monitor.refresh)
         self.bar.addSeparator()
-        self.a_restart = self._act(FIF.ROTATE, "Reiniciar", "Restart",
-                                   lambda: self._cmd(["idevicediagnostics", "restart"], tr("Reiniciando…", "Restarting…")))
-        self.a_shutdown = self._act(FIF.POWER_BUTTON, "Apagar", "Shut down",
-                                    lambda: self._cmd(["idevicediagnostics", "shutdown"], tr("Apagando…", "Shutting down…")))
+        self.a_restart = self._act(FIF.ROTATE, "Reiniciar", "Restart", self._restart)
+        self.a_shutdown = self._act(FIF.POWER_BUTTON, "Apagar", "Shut down", self._shutdown)
         self.bar.addSeparator()
         self.a_recovery = self._act(FIF.DEVELOPER_TOOLS, "Entrar en Recovery", "Enter Recovery", self._toggle_recovery)
         self.bar.addSeparator()
@@ -486,16 +484,43 @@ class DeviceTab(Page):
 
     def _toggle_recovery(self):
         if self.state.get("mode") == "recovery":
-            self._cmd(["irecovery", "-n"], tr("Saliendo de Recovery…", "Leaving Recovery…"))
+            if confirm_in_app(
+                    self, "Recovery",
+                    tr("El dispositivo saldrá de Recovery y se reiniciará. ¿Quieres continuar?",
+                       "The device will leave Recovery and restart. Do you want to continue?"),
+                    ok=tr("Reiniciar", "Restart"), danger=True):
+                self._cmd(["irecovery", "-n"], tr("Saliendo de Recovery…", "Leaving Recovery…"))
         else:
             self._enter_recovery()
+
+    def _restart(self):
+        if confirm_in_app(
+                self, tr("Reiniciar dispositivo", "Restart device"),
+                tr("El dispositivo se reiniciará y se interrumpirá lo que esté haciendo. ¿Quieres continuar?",
+                   "The device will restart and anything in progress will be interrupted. Do you want to continue?"),
+                ok=tr("Reiniciar", "Restart"), danger=True):
+            self._cmd(["idevicediagnostics", "restart"], tr("Reiniciando…", "Restarting…"))
+
+    def _shutdown(self):
+        if confirm_in_app(
+                self, tr("Apagar dispositivo", "Shut down device"),
+                tr("El dispositivo se apagará. Para volver a encenderlo tendrás que usar su botón de encendido. "
+                   "¿Quieres continuar?",
+                   "The device will turn off. To turn it on again, use its power button. Do you want to continue?"),
+                ok=tr("Apagar", "Shut down"), danger=True):
+            self._cmd(["idevicediagnostics", "shutdown"], tr("Apagando…", "Shutting down…"))
 
     def _enter_recovery(self):
         udid = self.state.get("udid")
         if not udid:
             return
-        if QMessageBox.question(self, "Recovery", tr("¿Poner el dispositivo en modo Recovery?",
-                                                    "Put the device into Recovery mode?")) != QMessageBox.StandardButton.Yes:
+        if not confirm_in_app(
+                self, "Recovery",
+                tr("El dispositivo entrará en Recovery y no podrás usarlo normalmente hasta que lo reinicies. "
+                   "¿Quieres continuar?",
+                   "The device will enter Recovery and you will not be able to use it normally until you restart it. "
+                   "Do you want to continue?"),
+                ok=tr("Entrar en Recovery", "Enter Recovery"), danger=True):
             return
         self._cmd(["ideviceenterrecovery", udid], tr("Entrando en Recovery…", "Entering Recovery…"))
 

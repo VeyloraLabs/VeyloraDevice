@@ -12,11 +12,11 @@ from .. import assets, i18n, privacy, theme
 from ..core import android, android_catalog
 from ..core.util import fmt_bytes
 from ..dispatch import run_async
-from ..i18n import tr
+from ..i18n import text, tr
 from .android_base import (AndroidMonitor, AndroidPage, confirm, relayout_bar,
                            set_action_text, short_error)
 from .android_device_image import AndroidDeviceImage
-from .components import Pill, card_frame, toast
+from .components import Pill, card_frame, choose_pdf_language, toast
 from .stat_strip import StatStrip
 
 INFO_FIELDS = (
@@ -65,7 +65,7 @@ def fmt_duration(seconds):
     return " ".join(parts)
 
 
-def stats_rows(overview):
+def stats_rows(overview, language=None):
     rows = []
     battery = overview["battery"]
     if battery["level"] is not None:
@@ -73,29 +73,31 @@ def stats_rows(overview):
         status = android.BATTERY_STATUS.get(battery["status"])
         health = android.BATTERY_HEALTH.get(battery["health"])
         if status:
-            bits.append(tr(*status))
+            bits.append(text(*status, language))
         if battery["temperature"] is not None:
             bits.append(f"{battery['temperature']:.1f} °C")
         if health:
-            bits.append(tr(*health))
-        rows.append((tr("Batería", "Battery"), " · ".join(bits)))
+            bits.append(text(*health, language))
+        rows.append((text("Batería", "Battery", language), " · ".join(bits)))
         if battery["technology"]:
-            rows.append((tr("Tecnología de batería", "Battery technology"), battery["technology"]))
+            rows.append((text("Tecnología de batería", "Battery technology", language), battery["technology"]))
         if battery["voltage"]:
-            rows.append((tr("Voltaje de batería", "Battery voltage"), f"{battery['voltage']} mV"))
+            rows.append((text("Voltaje de batería", "Battery voltage", language), f"{battery['voltage']} mV"))
     for key, es, en in (("storage", "Almacenamiento", "Storage"), ("memory", "Memoria RAM", "RAM")):
         if overview[key]:
             total, used = overview[key]
             percent = used * 100 / total if total else 0
-            rows.append((tr(es, en), tr(f"{fmt_bytes(used)} de {fmt_bytes(total)} ({percent:.0f} % en uso)",
-                                        f"{fmt_bytes(used)} of {fmt_bytes(total)} ({percent:.0f}% used)")))
+            rows.append((text(es, en, language), text(f"{fmt_bytes(used)} de {fmt_bytes(total)} "
+                                                       f"({percent:.0f} % en uso)",
+                                                       f"{fmt_bytes(used)} of {fmt_bytes(total)} "
+                                                       f"({percent:.0f}% used)", language)))
     if overview["screen"]:
         dpi = f" · {overview['density']} dpi" if overview["density"] else ""
-        rows.append((tr("Pantalla", "Screen"), overview["screen"] + dpi))
+        rows.append((text("Pantalla", "Screen", language), overview["screen"] + dpi))
     if overview["ip"]:
-        rows.append((tr("IP de Wi-Fi", "Wi-Fi IP"), overview["ip"]))
+        rows.append((text("IP de Wi-Fi", "Wi-Fi IP", language), overview["ip"]))
     if overview["uptime"]:
-        rows.append((tr("Tiempo encendido", "Uptime"), fmt_duration(overview["uptime"])))
+        rows.append((text("Tiempo encendido", "Uptime", language), fmt_duration(overview["uptime"])))
     return rows
 
 
@@ -526,7 +528,29 @@ class AndroidTab(AndroidPage):
         lay.addWidget(table, 1)
         dialog.exec()
 
-    def report_html(self):
+    def report_rows(self, language):
+        device = self.device
+        if not device:
+            return []
+        if device["status"] == "device":
+            props = self._properties
+            rows = [(text(es, en, language), props[key]) for es, en, key in INFO_FIELDS if props.get(key)]
+            rows.insert(0, (text("Número de serie", "Serial number", language), device["serial"]))
+            if self._identity and self._identity.get("name"):
+                rows.insert(1, (text("Nombre comercial", "Marketing name", language), self._identity["name"]))
+            if self._overview:
+                rows += stats_rows(self._overview, language)
+            return rows
+        if device["status"] == "fastboot":
+            label_names = {name: (es, en) for _var, es, en in android.FASTBOOT_VARS for name in (es, en)}
+            rows = [(text("Número de serie", "Serial number", language), device["serial"])]
+            for label, value in self._fastboot_rows:
+                match = label_names.get(label)
+                rows.append((text(*match, language) if match else label, value))
+            return rows
+        return []
+
+    def report_html(self, language=None):
         def esc(text):
             return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -540,15 +564,18 @@ class AndroidTab(AndroidPage):
         banner = image_tag(assets.path("banner.png"), 180) if assets.exists("banner.png") else ""
         phone = image_tag(self._identity["image"], 150) if self._identity and self._identity.get("image") else ""
         body = "".join(f"<tr><td style='padding:3px 10px 3px 0;color:#555'>{esc(k)}</td>"
-                       f"<td>{esc(privacy.report_value(k, v))}</td></tr>" for k, v in self._rows)
+                       f"<td>{esc(privacy.report_value(k, v, language))}</td></tr>"
+                       for k, v in self.report_rows(language))
         return (f"<html><body style='font-family:sans-serif;font-size:10pt'>{banner}"
-                f"<h2>{esc(self.title.text())}</h2><p>{phone}</p><table>{body}</table>"
-                f"<hr><p style='color:#888;font-size:8pt'>{esc(tr('Generado con VeyloraDevice · VeyloraLabs', 'Generated with VeyloraDevice · VeyloraLabs'))}</p>"
+                f"<h2>{esc(text('Informe del dispositivo', 'Device report', language))}</h2>"
+                f"<h3>{esc(self.title.text())}</h3><p>{phone}</p><table>{body}</table>"
+                f"<hr><p style='color:#888;font-size:8pt'>"
+                f"{esc(text('Generado con VeyloraDevice · VeyloraLabs', 'Generated with VeyloraDevice · VeyloraLabs', language))}</p>"
                 "</body></html>")
 
-    def write_report(self, path):
+    def write_report(self, path, language=None):
         document = QTextDocument()
-        document.setHtml(self.report_html())
+        document.setHtml(self.report_html(language))
         writer = QPdfWriter(path)
         writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
         writer.setPageMargins(QMarginsF(15, 15, 15, 15), QPageLayout.Unit.Millimeter)
@@ -557,15 +584,19 @@ class AndroidTab(AndroidPage):
     def _report_pdf(self):
         if not self._rows:
             return
+        language = choose_pdf_language(self)
+        if language is None:
+            return
         serial = "android" if privacy.enabled() else (self.device or {}).get("serial", "android").replace(":", "_")
+        filename = text(f"informe-android-{serial}", f"android-report-{serial}", language)
         path, _ = QFileDialog.getSaveFileName(self, tr("Guardar informe", "Save report"),
-                                              str(Path.home() / f"informe-android-{serial}.pdf"), "PDF (*.pdf)")
+                                              str(Path.home() / f"{filename}.pdf"), "PDF (*.pdf)")
         if not path:
             return
         if not path.lower().endswith(".pdf"):
             path += ".pdf"
         try:
-            self.write_report(path)
+            self.write_report(path, language)
         except OSError as exc:
             toast(self, "err", tr("No se pudo guardar", "Could not save"), str(exc), 6000)
             return
@@ -588,7 +619,11 @@ class AndroidTab(AndroidPage):
                       ok_text=tr("Orden enviada al dispositivo.", "Command sent to the device."))
 
     def _restart(self):
-        self._send("system", tr("Reiniciando…", "Restarting…"))
+        if confirm(self, tr("Reiniciar dispositivo", "Restart device"),
+                   tr("El móvil se reiniciará y se interrumpirá lo que esté haciendo. ¿Quieres continuar?",
+                      "The phone will restart and anything in progress will be interrupted. Do you want to continue?"),
+                   ok=tr("Reiniciar", "Restart"), danger=True):
+            self._send("system", tr("Reiniciando…", "Restarting…"))
 
     def _shutdown(self):
         if confirm(self, tr("Apagar", "Shut down"),
@@ -600,7 +635,10 @@ class AndroidTab(AndroidPage):
     def _toggle_recovery(self):
         device = self.device
         if device and device["status"] == "fastboot":
-            self._send("system", tr("Saliendo de Fastboot…", "Leaving Fastboot…"))
+            if confirm(self, "Fastboot", tr("El móvil se reiniciará para salir de Fastboot. ¿Quieres continuar?",
+                                            "The phone will restart to leave Fastboot. Do you want to continue?"),
+                       ok=tr("Reiniciar", "Restart"), danger=True):
+                self._send("system", tr("Saliendo de Fastboot…", "Leaving Fastboot…"))
         elif confirm(self, "Recovery", tr("¿Poner el dispositivo en modo Recovery?\n\nPara salir, elige «Reiniciar» "
                                           "en ese menú o mantén pulsado el botón de encendido.",
                                           "Put the device into Recovery mode?\n\nTo leave it, choose “Reboot” in "

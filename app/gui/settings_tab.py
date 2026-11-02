@@ -62,8 +62,8 @@ class SettingsTab(Page):
         utexts.setSpacing(2)
         utexts.addWidget(i18n.bind(BodyLabel(), "setText", "Avisarme de nuevas versiones", "Notify me about new versions"))
         unote = CaptionLabel("")
-        i18n.bind(unote, "setText", f"Versión instalada: {__version__}. Se consulta GitHub al abrir y cada pocas horas.",
-                  f"Installed version: {__version__}. GitHub is checked on start and every few hours.")
+        i18n.bind(unote, "setText", f"Versión instalada: {__version__}. Se consulta GitHub al abrir y cada 30 minutos.",
+                  f"Installed version: {__version__}. GitHub is checked on start and every 30 minutes.")
         unote.setStyleSheet(f"color:{theme.MUTED}")
         utexts.addWidget(unote)
         ul.addLayout(utexts, 1)

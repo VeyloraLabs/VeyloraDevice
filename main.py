@@ -1,10 +1,12 @@
 import sys
+import time
 
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QTimer
 from PySide6.QtWidgets import QApplication
 
 from app import assets, dispatch, osinfo, theme
 from app.gui.main_window import MainWindow
+from app.gui.loading import LoadingScreen
 
 
 def migrate_settings():
@@ -27,8 +29,16 @@ def main():
     app.setWindowIcon(assets.app_icon())
     dispatch.init()
     theme.apply(app)
+    splash = LoadingScreen()
+    screen = app.primaryScreen().availableGeometry()
+    splash.move(screen.center() - splash.rect().center())
+    splash.show()
+    app.processEvents()
+    started = time.monotonic()
     win = MainWindow()
     win.showMaximized()
+    remaining = max(0, 650 - int((time.monotonic() - started) * 1000))
+    QTimer.singleShot(remaining, splash.close)
     sys.exit(app.exec())
 
 
