@@ -319,7 +319,7 @@ Delete the `~/.cache/veylora` folder (model images and catalogues). It will be r
 - [x] Hide sensitive content
 - [x] New version notifications
 - [x] `.deb`, `.rpm`, AppImage, and `.tar.gz` packages
-- [ ] Support for additional architectures (ARM) in releases
+- [x] Support for additional architectures (ARM) in releases
 - [ ] More languages
 - [ ] Flathub package
 
